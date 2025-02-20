@@ -7,12 +7,14 @@ import {
 } from "react-router-dom";
 import Navbar from "./components/common/Navbar";
 import Footer from "./components/common/Footer";
-import Login from "./components/auth/Login";
+import Login from "./components/auth/Login.jsx";
 import Register from "./components/auth/Register";
 import Dashboard from "./components/dashboard/Dashboard";
 import ModelList from "./components/models/ModelList";
 import ModelDetails from "./components/models/ModelDetails";
 import ModelTraining from "./components/models/ModelTraining";
+import Statistics from "./components/dashboard/Statistics";
+import ProtectedRoute from "./components/common/ProtectedRoute";
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem("token");
@@ -70,5 +72,3 @@ const App = () => {
 };
 
 export default App;
-
-
