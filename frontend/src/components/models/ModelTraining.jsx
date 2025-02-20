@@ -1,138 +1,142 @@
-import React, { useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+// src/components/models/ModelTraining.jsx
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { modelService } from '../../services/models';
 
 const ModelTraining = () => {
-  const [trainingStatus, setTrainingStatus] = useState('idle');
-  const [progress, setProgress] = useState(0);
-  const [modelConfig, setModelConfig] = useState({
-    baseModel: 'bert-base-uncased',
-    numEpochs: 3,
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [trainingConfig, setTrainingConfig] = useState({
+    epochs: 10,
+    batchSize: 32,
     learningRate: 0.001,
-    batchSize: 16
   });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const onDrop = useCallback(async (acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      setTrainingStatus('preparing');
-      try {
-        // Create form data with file and config
-        const formData = new FormData();
-        formData.append('training_data', file);
-        formData.append('config', JSON.stringify(modelConfig));
+  const handleConfigChange = (e) => {
+    const { name, value } = e.target;
+    setTrainingConfig(prev => ({
+      ...prev,
+      [name]: name === 'epochs' || name === 'batchSize' ? parseInt(value) : parseFloat(value)
+    }));
+  };
 
-        // Start training
-        setTrainingStatus('training');
-        const response = await modelService.trainModel(formData);
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files[0]);
+  };
 
-        // Update progress periodically
-        const statusCheckInterval = setInterval(async () => {
-          const status = await modelService.getTrainingStatus(response.modelId);
-          setProgress(status.progress);
-          
-          if (status.status === 'completed') {
-            clearInterval(statusCheckInterval);
-            setTrainingStatus('completed');
-          } else if (status.status === 'failed') {
-            clearInterval(statusCheckInterval);
-            setTrainingStatus('failed');
-          }
-        }, 5000);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-      } catch (error) {
-        setTrainingStatus('failed');
-        console.error('Training failed:', error);
-      }
+    try {
+      const formData = new FormData();
+      formData.append('trainingData', selectedFile);
+      formData.append('config', JSON.stringify(trainingConfig));
+
+      await modelService.trainModel(id, formData);
+      navigate(`/models/${id}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  }, [modelConfig]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
+  };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <h2 className="text-2xl font-bold">Train New Model</h2>
-      </CardHeader>
-      <CardContent>
-        {/* Model Configuration */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">Model Configuration</h3>
-          <div className="grid grid-cols-2 gap-4">
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-8">
+        <h1 className="text-2xl font-bold mb-6">Train Model</h1>
+
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-1">Base Model</label>
-              <select
-                className="w-full p-2 border rounded"
-                value={modelConfig.baseModel}
-                onChange={(e) => setModelConfig({
-                  ...modelConfig,
-                  baseModel: e.target.value
-                })}
-              >
-                <option value="bert-base-uncased">BERT Base Uncased</option>
-                <option value="roberta-base">RoBERTa Base</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Number of Epochs</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Training Data
+              </label>
               <input
-                type="number"
-                className="w-full p-2 border rounded"
-                value={modelConfig.numEpochs}
-                onChange={(e) => setModelConfig({
-                  ...modelConfig,
-                  numEpochs: parseInt(e.target.value)
-                })}
+                type="file"
+                onChange={handleFileChange}
+                className="w-full border-gray-300 rounded-md shadow-sm"
+                required
               />
             </div>
-          </div>
-        </div>
 
-        {/* File Upload */}
-        <div
-          {...getRootProps()}
-          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
-            ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-        >
-          <input {...getInputProps()} />
-          <p className="text-gray-600">
-            {isDragActive
-              ? 'Drop the training data here...'
-              : 'Drag and drop training data, or click to select files'}
-          </p>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Number of Epochs
+              </label>
+              <input
+                type="number"
+                name="epochs"
+                value={trainingConfig.epochs}
+                onChange={handleConfigChange}
+                className="w-full border-gray-300 rounded-md shadow-sm"
+                min="1"
+                required
+              />
+            </div>
 
-        {/* Training Status */}
-        {trainingStatus !== 'idle' && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-3">Training Status</h3>
-            <Progress value={progress} className="w-full" />
-            
-            {trainingStatus === 'failed' && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertDescription>
-                  Training failed. Please check the logs and try again.
-                </AlertDescription>
-              </Alert>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Batch Size
+              </label>
+              <input
+                type="number"
+                name="batchSize"
+                value={trainingConfig.batchSize}
+                onChange={handleConfigChange}
+                className="w-full border-gray-300 rounded-md shadow-sm"
+                min="1"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Learning Rate
+              </label>
+              <input
+                type="number"
+                name="learningRate"
+                value={trainingConfig.learningRate}
+                onChange={handleConfigChange}
+                className="w-full border-gray-300 rounded-md shadow-sm"
+                step="0.0001"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="text-red-600 text-sm">
+                {error}
+              </div>
             )}
-            
-            {trainingStatus === 'completed' && (
-              <Alert className="mt-4">
-                <AlertDescription>
-                  Training completed successfully!
-                </AlertDescription>
-              </Alert>
-            )}
+
+            <div className="flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={() => navigate(`/models/${id}`)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {loading ? 'Training...' : 'Start Training'}
+              </button>
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </form>
+      </div>
+    </div>
   );
 };
 
 export default ModelTraining;
-Last edited 23 minutes ago
