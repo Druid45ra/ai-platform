@@ -1,0 +1,7 @@
+# Allow Googlebot to access all content
+User-agent: Googlebot
+Disallow:
+
+# Disallow all other web crawlers from accessing the /private directory
+User-agent: *
+Disallow: /private/
