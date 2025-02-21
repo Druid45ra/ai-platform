@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     APP_NAME: str = "AI Platform"
@@ -33,4 +33,3 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_
-Last edited 1 minute ago
