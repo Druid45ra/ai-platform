@@ -3,15 +3,16 @@ from typing import Optional
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-
 from app.core.config import settings
 from app.db.crud import get_user_by_email
 
-# Configurarea contextului pentru hashing-ul parolelor
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Configurarea OAuth2
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
